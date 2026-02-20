@@ -38,10 +38,21 @@ function Delay(timeout, condition)
         return
     end
 
-    local predicate = function ()
-        mq.doevents()
+    local function ToBool(v)
+        if v == nil then return false end
+        local t = type(v)
+        if t == "boolean" then return v end
+        if t == "number" then return v ~= 0 end   
+        if t == "string" then
+            local s = v:lower()
+            return (s ~= "" and s ~= "0" and s ~= "false")
+        end
+        return true 
+    end
 
-        return condition()
+    local predicate = function()
+        mq.doevents()
+        return ToBool(condition())
     end
 
     mq.delay(timeout, predicate)
