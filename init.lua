@@ -4471,6 +4471,7 @@ local function GloomingdeepRevolt()
 		function ()
 			workSet.PullRange = 500
 			workSet.ZRadius = 1000
+			navToLoc(-605, -372, -41)
 		end,
 		{
 			knownTargets.gloomSpider,
@@ -4486,7 +4487,9 @@ local function GloomingdeepRevolt()
 		function ()
 			workSet.PullRange = 500
 			workSet.ZRadius = 1000
+			navToLoc(-605, -372, -41)
 			knownTargets.gloomSpider.Priority = 11
+			
 		end,
 		{
 			knownTargets.gloomSpider,
