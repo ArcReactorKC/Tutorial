@@ -20,6 +20,7 @@ Where `option` can be:
 ## Credits
 
 Heavily based on the work done initially by **Chatwiththisname** and later by **Cannonballdex** (and anyone else I missed who contributed to the original project).
+Rouneq for the original LUA refactor.
 
 ## Notes
 
