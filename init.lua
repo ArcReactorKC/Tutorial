@@ -1,5 +1,6 @@
---Original lua translation by Rouneq
+--Tutorial.lua by Rouneq
 --Based on Tutorial.mac by Chatwiththisname and Cannonballdex
+--v0.99.2
 --
 --Purpose:  Will conduct the tutorial for the current character
 --			from immediately after character creation
@@ -120,6 +121,19 @@ local workSet = {
 	Location = "",
 	---@type integer
 	PetGem = 8,
+
+	-- Combat priority targeting
+	---@type boolean
+	HealerPriorityLock = false,
+	---@type integer
+	HealerScanRadius = 60,
+}
+
+-- Tutorial-zone “healer” mobs that can prolong fights if left alive.
+-- Note: MQ spawn Name() commonly uses underscores for spaces.
+local HEALER_MOBS = {
+	"a_gloomingdeep_plaguebearer",
+	"Spider_Tamer_Gugan",
 }
 
 ---@type table<string, Location>
@@ -1491,6 +1505,31 @@ local function navToSpawn(spawnId, combatRoutine)
 	FunctionDepart()
 end
 
+---@param radius integer
+---@return integer healerId
+local function getNearbyHealerId(radius)
+	-- Finds the nearest known healer mob within radius (if any).
+	-- We intentionally do NOT require the healer to be targeting us;
+	-- healers often target their ally while still keeping us in combat.
+	local spawnPattern = string.format("noalert 1 targetable npc radius %d zradius %d", radius, workSet.ZRadius)
+
+	for _, healerName in ipairs(HEALER_MOBS) do
+		local searchExpression = string.format('%s "%s"', spawnPattern, healerName)
+		local count = TLO.SpawnCount(searchExpression)()
+		if (count and count > 0) then
+			local nearest = TLO.NearestSpawn(1, searchExpression)
+			if (nearest.ID() and nearest.ID() > 0 and nearest.Type() ~= "Corpse" and nearest.ConColor() ~= "GREY") then
+				-- Prefer a mob we can actually path to.
+				if (Navigation.PathExists("id " .. nearest.ID())()) then
+					return nearest.ID()
+				end
+			end
+		end
+	end
+
+	return 0
+end
+
 ---@param spawnId integer
 local function findAndKill(spawnId)
 	FunctionEnter()
@@ -1535,6 +1574,42 @@ local function findAndKill(spawnId)
 	local waitingOnDeadMob = true
 
 	while (waitingOnDeadMob) do
+		-- If we're in combat and a healer mob is nearby, kill it first.
+		-- This prevents endless “yo-yo” fights in the tutorial when plaguebearers/Gugan heal allies.
+		if (Me.Combat() and not workSet.HealerPriorityLock) then
+			local healerId = getNearbyHealerId(workSet.HealerScanRadius)
+			if (healerId and healerId > 0 and healerId ~= Target.ID()) then
+				local healerSpawn = Spawn("id " .. healerId)
+				if (healerSpawn.ID() > 0) then
+					PrintDebugMessage(DebuggingRanks.Basic, "Healer nearby (%s). Prioritizing kill.", healerSpawn.CleanName())
+					local holdTarget = workSet.MyTargetID
+					local holdTargetType = workSet.TargetType
+					workSet.HealerPriorityLock = true
+
+					-- Make sure we stop navigating/sticking before swapping targets.
+					if (Navigation.Active()) then mq.cmd("/squelch /nav stop") end
+					mq.cmd("/squelch /stick off")
+					mq.cmd("/squelch /attack off")
+					Delay(50)
+
+					workSet.TargetType = "NPC"
+					findAndKill(healerId)
+					workSet.HealerPriorityLock = false
+					workSet.MyTargetID = holdTarget
+					workSet.TargetType = holdTargetType
+
+					-- After the healer dies, reacquire the original target if it still exists.
+					local heldSpawn = Spawn("id " .. holdTarget)
+					if (heldSpawn.ID() > 0 and heldSpawn.Type() ~= "Corpse") then
+						targetSpawnById(holdTarget)
+						mq.cmd.attack("on")
+						if (Me.Mercenary.ID()) then mq.cmd("/mercassist") end
+						if (Pet.ID() > 0) then mq.cmd.pet("attack") end
+					end
+				end
+			end
+		end
+
 		if ((Target.ID() > 0 and Target.Type() == workSet.TargetType)) then
 			if (waitingOnDeadMob and Target.Distance() < 30) then
 				if (Navigation.Active()) then
