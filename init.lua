@@ -134,6 +134,8 @@ local workSet = {
 local HEALER_MOBS = {
 	"a_gloomingdeep_plaguebearer",
 	"Spider_Tamer_Gugan",
+	"a_gloomingdeep_spiritweaver",
+	"pox",
 }
 
 ---@type table<string, Location>
