@@ -1137,6 +1137,14 @@ local function amIDead()
 		Note.Info("\arYOU~ have died! Waiting for YOU to get off your face.")
 		SetChatTitle("You died, get back up")
 
+		-- Reset combat target state so we do not immediately run back to the prior fight after respawn.
+		workSet.MyTargetID = 0
+		mq.cmd("/squelch /target clear")
+		if (Navigation.Active()) then
+			mq.cmd("/squelch /nav stop")
+		end
+		mq.cmd("/squelch /stick off")
+
 		optionsList.Select(1)
 		Delay(2000, function ()
 			return optionsList.GetCurSel() == 1
@@ -1336,6 +1344,14 @@ end
 local function checkGroupHealth()
 	FunctionEnter()
 
+	amIDead()
+
+	if (Me.Dead() or Me.Hovering() or Window("RespawnWnd").Open()) then
+		FunctionDepart()
+
+		return
+	end
+
 	local xtarget = getNextXTarget()
 
 	if (xtarget ~= nil) then
@@ -1343,8 +1359,6 @@ local function checkGroupHealth()
 
 		return
 	end
-
-	amIDead()
 
 	SetChatTitle("Group Health Check")
 
@@ -1358,7 +1372,7 @@ local function checkGroupHealth()
 						Note.Info("%s is low on Health!", Group.Member(i).Name())
 						SetChatTitle("Waiting on " .. Group.Member(i).Name() .. " health to reach " .. workSet.HealTill .. "%")
 						if (xtarget == nil) then
-							while (not Group.Member(i).Dead() and Group.Member(i).PctHPs() < workSet.HealTill and xtarget == nil) do
+							while (not Me.Dead() and not Me.Hovering() and not Window("RespawnWnd").Open() and not Group.Member(i).Dead() and Group.Member(i).PctHPs() < workSet.HealTill and xtarget == nil) do
 								if ((Me.Standing()) and (not Me.Casting.ID()) and (not Me.Mount.ID())) then
 									Me.Sit()
 								end
