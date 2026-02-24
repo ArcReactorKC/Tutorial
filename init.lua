@@ -1137,6 +1137,14 @@ local function amIDead()
 		Note.Info("\arYOU~ have died! Waiting for YOU to get off your face.")
 		SetChatTitle("You died, get back up")
 
+		-- Reset combat target state so we do not immediately run back to the prior fight after respawn.
+		workSet.MyTargetID = 0
+		mq.cmd("/squelch /target clear")
+		if (Navigation.Active()) then
+			mq.cmd("/squelch /nav stop")
+		end
+		mq.cmd("/squelch /stick off")
+
 		optionsList.Select(1)
 		Delay(2000, function ()
 			return optionsList.GetCurSel() == 1
