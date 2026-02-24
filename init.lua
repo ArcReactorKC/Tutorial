@@ -1533,7 +1533,9 @@ local function getNearbyHealerId(radius)
 end
 
 ---@param spawnId integer
-local function findAndKill(spawnId)
+---@param opts table|nil
+local function findAndKill(spawnId, opts)
+	opts = opts or {}
 	FunctionEnter()
 	PrintDebugMessage(DebuggingRanks.Function, "spawnId: %s", spawnId)
 	workSet.MyTargetID = spawnId
@@ -1544,7 +1546,13 @@ local function findAndKill(spawnId)
 	local xtarget
 
 	while (killSpawn() and killSpawn.ID() > 0 and killSpawn.Distance() > 30) do
-		if (killSpawn.TargetOfTarget.ID() > 0 or killSpawn.Type() == "Corpse") then
+		if (killSpawn.Type() == "Corpse") then
+			FunctionDepart()
+
+			return
+		end
+
+		if (not opts.force and killSpawn.TargetOfTarget.ID() > 0) then
 			FunctionDepart()
 
 			return
@@ -1595,7 +1603,7 @@ local function findAndKill(spawnId)
 					Delay(50)
 
 					workSet.TargetType = "NPC"
-					findAndKill(healerId)
+					findAndKill(healerId, { force = true })
 					workSet.HealerPriorityLock = false
 					workSet.MyTargetID = holdTarget
 					workSet.TargetType = holdTargetType
