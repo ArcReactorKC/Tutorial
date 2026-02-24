@@ -26,9 +26,6 @@ Rouneq for the original LUA refactor.
 
 Designed to be restartable if it gets stuck in some way and is stopped (the original was too; this version verifies it still does). Intended to run attended in the foreground.
 
-There are cases where pathing can get stuck (notably around the Fort area) if running in the background. An updated mesh is included, but it does not fix all issues. It can run in the background, and I have tested it that way multiple times where nothing went wrong, but foreground is preferred when possible.
-
-The code around detecting whether a mob is already engaged needs some work and could use a fresh perspective.
 
 ## Enhancements
 
