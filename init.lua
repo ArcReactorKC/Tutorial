@@ -1552,10 +1552,36 @@ local function findAndKill(spawnId, opts)
 			return
 		end
 
-		if (not opts.force and killSpawn.TargetOfTarget.ID() > 0) then
+		local totId = killSpawn.TargetOfTarget.ID() or 0
+		local totName = killSpawn.TargetOfTarget.CleanName() or killSpawn.TargetOfTarget.Name() or ""
+		local isOurFight = false
+
+		if (totId > 0) then
+			if (totId == Me.ID()) then
+				isOurFight = true
+			elseif (Me.Mercenary.ID() and Me.Mercenary.ID() > 0 and totId == Me.Mercenary.ID()) then
+				isOurFight = true
+			elseif (Pet.ID() and Pet.ID() > 0 and totId == Pet.ID()) then
+				isOurFight = true
+			else
+				for i = 1, Group.Members() do
+					local memberId = Group.Member(i).ID() or 0
+					local memberName = Group.Member(i).Name() or ""
+					if (memberId > 0 and (totId == memberId or (totName ~= "" and totName == memberName))) then
+						isOurFight = true
+						break
+					end
+				end
+			end
+		end
+
+		if (not opts.force and totId > 0 and not isOurFight) then
+			PrintDebugMessage(DebuggingRanks.Detail, "Skipping %s (ID %s): target-of-target is external (%s / %s)", killSpawn.CleanName(), killSpawn.ID(), totName, totId)
 			FunctionDepart()
 
 			return
+		elseif (totId > 0) then
+			PrintDebugMessage(DebuggingRanks.Deep, "Continuing %s (ID %s): target-of-target is ours (%s / %s)%s", killSpawn.CleanName(), killSpawn.ID(), totName, totId, opts.force and " (force override)" or "")
 		end
 
 		xtarget = getNextXTarget()
