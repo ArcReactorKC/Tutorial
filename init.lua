@@ -624,23 +624,10 @@ local function getNextXTarget()
 
 	for i = 1, Me.XTarget() do
 		if (Me.XTarget(i).ID() > 0 and Me.XTarget(i).Type() ~= nil and Me.XTarget(i).Type() ~= "Corpse") then
-			local xtargetSpawn = Spawn("id " .. Me.XTarget(i).ID())
-			local isEngagedTarget = xtargetSpawn.ID() > 0 and xtargetSpawn.Type() ~= "Corpse" and (
-				(Me.Combat() and xtargetSpawn.Distance() <= (workSet.PullRange or 80)) or
-				xtargetSpawn.PctAggro() > 0 or
-				xtargetSpawn.TargetOfTarget.ID() == Me.ID() or
-				(Me.Mercenary.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Me.Mercenary.ID()) or
-				(Pet.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Pet.ID())
-			)
+			PrintDebugMessage(DebuggingRanks.Detail, "Me.XTarget(%s) ID: %s, Name: %s, Type: %s", i, Me.XTarget(i).ID(), Me.XTarget(i).Name(), Me.XTarget(i).Type())
+			FunctionDepart()
 
-			if (isEngagedTarget) then
-				PrintDebugMessage(DebuggingRanks.Detail, "Me.XTarget(%s) ID: %s, Name: %s, Type: %s", i, Me.XTarget(i).ID(), Me.XTarget(i).Name(), Me.XTarget(i).Type())
-				FunctionDepart()
-
-				return Me.XTarget(i)
-			end
-
-			PrintDebugMessage(DebuggingRanks.Deep, "Skipping stale XTarget(%s): %s (%s)", i, Me.XTarget(i).Name(), Me.XTarget(i).ID())
+			return Me.XTarget(i)
 		end
 	end
 
@@ -1150,14 +1137,6 @@ local function amIDead()
 		Note.Info("\arYOU~ have died! Waiting for YOU to get off your face.")
 		SetChatTitle("You died, get back up")
 
-		-- Reset combat target state so we do not immediately run back to the prior fight after respawn.
-		workSet.MyTargetID = 0
-		mq.cmd("/squelch /target clear")
-		if (Navigation.Active()) then
-			mq.cmd("/squelch /nav stop")
-		end
-		mq.cmd("/squelch /stick off")
-
 		optionsList.Select(1)
 		Delay(2000, function ()
 			return optionsList.GetCurSel() == 1
@@ -1357,14 +1336,6 @@ end
 local function checkGroupHealth()
 	FunctionEnter()
 
-	amIDead()
-
-	if (Me.Dead() or Me.Hovering() or Window("RespawnWnd").Open()) then
-		FunctionDepart()
-
-		return
-	end
-
 	local xtarget = getNextXTarget()
 
 	if (xtarget ~= nil) then
@@ -1372,6 +1343,8 @@ local function checkGroupHealth()
 
 		return
 	end
+
+	amIDead()
 
 	SetChatTitle("Group Health Check")
 
@@ -1385,7 +1358,7 @@ local function checkGroupHealth()
 						Note.Info("%s is low on Health!", Group.Member(i).Name())
 						SetChatTitle("Waiting on " .. Group.Member(i).Name() .. " health to reach " .. workSet.HealTill .. "%")
 						if (xtarget == nil) then
-							while (not Me.Dead() and not Me.Hovering() and not Window("RespawnWnd").Open() and not Group.Member(i).Dead() and Group.Member(i).PctHPs() < workSet.HealTill and xtarget == nil) do
+							while (not Group.Member(i).Dead() and Group.Member(i).PctHPs() < workSet.HealTill and xtarget == nil) do
 								if ((Me.Standing()) and (not Me.Casting.ID()) and (not Me.Mount.ID())) then
 									Me.Sit()
 								end
@@ -1414,7 +1387,7 @@ local function checkMerc()
 	FunctionEnter()
 
 	if (Mercenary.State() ~= "ACTIVE") then
-		if (Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Tooltip() == "Revive your current mercenary." and
+		if (Me.Grouped() and Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Tooltip() == "Revive your current mercenary." and
 				Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Enabled()) then
 			Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").LeftMouseUp()
 		end
@@ -1579,10 +1552,36 @@ local function findAndKill(spawnId, opts)
 			return
 		end
 
-		if (not opts.force and killSpawn.TargetOfTarget.ID() > 0) then
+		local totId = killSpawn.TargetOfTarget.ID() or 0
+		local totName = killSpawn.TargetOfTarget.CleanName() or killSpawn.TargetOfTarget.Name() or ""
+		local isOurFight = false
+
+		if (totId > 0) then
+			if (totId == Me.ID()) then
+				isOurFight = true
+			elseif (Me.Mercenary.ID() and Me.Mercenary.ID() > 0 and totId == Me.Mercenary.ID()) then
+				isOurFight = true
+			elseif (Pet.ID() and Pet.ID() > 0 and totId == Pet.ID()) then
+				isOurFight = true
+			else
+				for i = 1, Group.Members() do
+					local memberId = Group.Member(i).ID() or 0
+					local memberName = Group.Member(i).Name() or ""
+					if (memberId > 0 and (totId == memberId or (totName ~= "" and totName == memberName))) then
+						isOurFight = true
+						break
+					end
+				end
+			end
+		end
+
+		if (not opts.force and totId > 0 and not isOurFight) then
+			PrintDebugMessage(DebuggingRanks.Detail, "Skipping %s (ID %s): target-of-target is external (%s / %s)", killSpawn.CleanName(), killSpawn.ID(), totName, totId)
 			FunctionDepart()
 
 			return
+		elseif (totId > 0) then
+			PrintDebugMessage(DebuggingRanks.Deep, "Continuing %s (ID %s): target-of-target is ours (%s / %s)%s", killSpawn.CleanName(), killSpawn.ID(), totName, totId, opts.force and " (force override)" or "")
 		end
 
 		xtarget = getNextXTarget()
@@ -4542,7 +4541,8 @@ local function GloomingdeepRevolt()
 			return Me.Subscription() == "FREE" and Me.Level() < 6 or Me.Subscription() == "SILVER" and Me.Level() < 5 or Me.Level() < 4
 		end,
 		function ()
-			workSet.PullRange = 300
+			workSet.PullRange = 1000
+			navToLoc(-605, -372, -41)
 		end,
 		{
 			knownTargets.gloomSpider,
