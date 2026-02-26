@@ -4541,7 +4541,8 @@ local function GloomingdeepRevolt()
 			return Me.Subscription() == "FREE" and Me.Level() < 6 or Me.Subscription() == "SILVER" and Me.Level() < 5 or Me.Level() < 4
 		end,
 		function ()
-			workSet.PullRange = 300
+			workSet.PullRange = 1000
+			navToLoc(-605, -372, -41)
 		end,
 		{
 			knownTargets.gloomSpider,
