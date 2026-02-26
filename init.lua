@@ -625,15 +625,12 @@ local function getNextXTarget()
 	for i = 1, Me.XTarget() do
 		if (Me.XTarget(i).ID() > 0 and Me.XTarget(i).Type() ~= nil and Me.XTarget(i).Type() ~= "Corpse") then
 			local xtargetSpawn = Spawn("id " .. Me.XTarget(i).ID())
-			local targetOfTargetId = xtargetSpawn.TargetOfTarget and xtargetSpawn.TargetOfTarget.ID and xtargetSpawn.TargetOfTarget.ID() or 0
-			local distance = xtargetSpawn.Distance and xtargetSpawn.Distance() or 9999
-			local pctAggro = xtargetSpawn.PctAggro and xtargetSpawn.PctAggro() or 0
 			local isEngagedTarget = xtargetSpawn.ID() > 0 and xtargetSpawn.Type() ~= "Corpse" and (
-				(Me.Combat() and distance <= (workSet.PullRange or 80)) or
-				pctAggro > 0 or
-				targetOfTargetId == Me.ID() or
-				(Me.Mercenary.ID() > 0 and targetOfTargetId == Me.Mercenary.ID()) or
-				(Pet.ID() > 0 and targetOfTargetId == Pet.ID())
+				(Me.Combat() and xtargetSpawn.Distance() <= (workSet.PullRange or 80)) or
+				xtargetSpawn.PctAggro() > 0 or
+				xtargetSpawn.TargetOfTarget.ID() == Me.ID() or
+				(Me.Mercenary.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Me.Mercenary.ID()) or
+				(Pet.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Pet.ID())
 			)
 
 			if (isEngagedTarget) then
