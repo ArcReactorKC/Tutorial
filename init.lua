@@ -624,10 +624,23 @@ local function getNextXTarget()
 
 	for i = 1, Me.XTarget() do
 		if (Me.XTarget(i).ID() > 0 and Me.XTarget(i).Type() ~= nil and Me.XTarget(i).Type() ~= "Corpse") then
-			PrintDebugMessage(DebuggingRanks.Detail, "Me.XTarget(%s) ID: %s, Name: %s, Type: %s", i, Me.XTarget(i).ID(), Me.XTarget(i).Name(), Me.XTarget(i).Type())
-			FunctionDepart()
+			local xtargetSpawn = Spawn("id " .. Me.XTarget(i).ID())
+			local isEngagedTarget = xtargetSpawn.ID() > 0 and xtargetSpawn.Type() ~= "Corpse" and (
+				(Me.Combat() and xtargetSpawn.Distance() <= (workSet.PullRange or 80)) or
+				xtargetSpawn.PctAggro() > 0 or
+				xtargetSpawn.TargetOfTarget.ID() == Me.ID() or
+				(Me.Mercenary.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Me.Mercenary.ID()) or
+				(Pet.ID() > 0 and xtargetSpawn.TargetOfTarget.ID() == Pet.ID())
+			)
 
-			return Me.XTarget(i)
+			if (isEngagedTarget) then
+				PrintDebugMessage(DebuggingRanks.Detail, "Me.XTarget(%s) ID: %s, Name: %s, Type: %s", i, Me.XTarget(i).ID(), Me.XTarget(i).Name(), Me.XTarget(i).Type())
+				FunctionDepart()
+
+				return Me.XTarget(i)
+			end
+
+			PrintDebugMessage(DebuggingRanks.Deep, "Skipping stale XTarget(%s): %s (%s)", i, Me.XTarget(i).Name(), Me.XTarget(i).ID())
 		end
 	end
 
@@ -1401,7 +1414,7 @@ local function checkMerc()
 	FunctionEnter()
 
 	if (Mercenary.State() ~= "ACTIVE") then
-		if (Me.Grouped() and Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Tooltip() == "Revive your current mercenary." and
+		if (Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Tooltip() == "Revive your current mercenary." and
 				Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").Enabled()) then
 			Window("MMGW_ManageWnd").Child("MMGW_SuspendButton").LeftMouseUp()
 		end
