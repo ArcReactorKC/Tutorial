@@ -4810,6 +4810,8 @@ local function GloomingdeepRevolt()
 		checkStep()
 		BustedLocks()
 		checkStep()
+		BustedLocksB()
+		checkStep()
 
 		levelUp(function ()
 			return Me.Subscription() == "FREE" and Me.Level() < 13 or Me.Subscription() == "SILVER" and Me.Level() < 12 or Me.Level() < 10
@@ -4835,7 +4837,6 @@ local function GloomingdeepRevolt()
 
 		FlutterwingB()
 		checkStep()
-		BustedLocksB()
 		FlutterwingC()
 		checkStep()
 
