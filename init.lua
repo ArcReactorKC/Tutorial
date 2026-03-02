@@ -148,20 +148,23 @@ local navLocs = {
 
 ---@type table<string, Location>
 local safeSpace = {
-	SpiderRoom = { Y = -955, X = -658, Z = -23 },
+	-- Add Heading = <degrees> to any entry to face a compass direction after arriving (N=0, W=90, S=180, E=270)
+	SpiderRoom = { Y = -955, X = -658, Z = -23, Heading = 180 },
 	QueenRoom = { Y = -1163, X = -536, Z = -8 },
-	PitTop = { Y = -226, X = -834, Z = 2 },
+	PitTop = { Y = -226, X = -834, Z = 2, Heading = 220 },
 	PitSteps = { Y = -226, X = -834, Z = 2 },
 	SlaveHall1 = { Y = -226, X = -834, Z = 2 },
 	SlaveHall2 = { Y = -87, X = -626, Z = 12 },
 	SlaveArea = { Y = -87, X = -626, Z = 12 },
 	JailEntry = { Y = -87, X = -626, Z = 12 },
 	JailHall1 = { Y = -87, X = -626, Z = 12 },
-	Jail1 = { Y = -201, X = -805, Z = 24 },
+	Jail1 = { Y = 195, X = -795, Z = 23, Heading =0 },
 	LocksmithHall = { Y = 598, X = -259, Z = -10 },
 	Jail2 = { Y = 598, X = -259, Z = -10 },
 	JailHall2 = { Y = 598, X = -259, Z = -10 },
-	SlaveMaster = { Y = 598, X = -259, Z = -10 },
+	SlaveMaster = { Y = 598, X = -259, Z = -10, Heading = 285 },
+	GloomingdeepFort = { Y = -90.86, X = -1743.17, Z = -103.61 },
+	Krenshin = { Y = -380.23, X = -1048.61, Z = -145.72 },
 }
 
 ---@type table<string, TargetInfo>
@@ -1036,31 +1039,37 @@ end
 ---@param x number
 ---@param z number
 local function basicNavToLoc(y, x, z)
-	FunctionEnter()
+  FunctionEnter()
 
-	local destLoc = string.format("%s,%s,%s", y, x, z)
+  local destLocYXZ = string.format("%s,%s,%s", y, x, z)
+  local destLocYX  = string.format("%s,%s", y, x)
 
-	if (Navigation.PathExists(string.format("locyxz %s", destLoc))) then
-		PrintDebugMessage(DebuggingRanks.Function, "Nav to Y: %s, X: %s, Z: %s", y, x, z)
+  local hasPathYXZ = Navigation.PathExists(string.format("locyxz %s", destLocYXZ))
+  local hasPathYX  = Navigation.PathExists(string.format("loc %s", destLocYX))
 
-		while (Math.Distance(destLoc)() > 15) do
-			checkSwiftness()
-			checkSelfBuffs()
-			whereAmI()
+  if hasPathYXZ or hasPathYX then
+    PrintDebugMessage(DebuggingRanks.Function, "Nav to Y: %s, X: %s, Z: %s (PathYXZ=%s PathYX=%s)", y, x, z, hasPathYXZ, hasPathYX)
 
-			if (Navigation.Active()) then
-				Delay(100)
-			else
-				mq.cmdf("/squelch /nav locyxz %s %s %s", y, x, z)
-			end
-		end
+    while (Math.Distance(destLocYXZ)() > 15) do
+      checkSwiftness()
+      checkSelfBuffs()
+      whereAmI()
 
-		if (Navigation.Active()) then
-			mq.cmd.nav("stop")
-		end
-	end
+      if Navigation.Active() then
+        Delay(100)
+      else
+        if hasPathYXZ then
+          mq.cmdf("/squelch /nav locyxz %s %s %s", y, x, z)
+        else
+          mq.cmdf("/squelch /nav loc %s %s", y, x)
+        end
+      end
+    end
 
-	FunctionDepart()
+    if Navigation.Active() then mq.cmd.nav("stop") end
+  end
+
+  FunctionDepart()
 end
 
 local function basicNavToSpawn(spawnId)
@@ -1131,9 +1140,10 @@ end
 local function amIDead()
 	FunctionEnter()
 
+	local died = false
 	local optionsList = Window("RespawnWnd").Child("RW_OptionsList")
 
-	if (Me.Dead() and optionsList.List(1, 2) == "Bind Location") then
+	if (Window("RespawnWnd").Open()) then
 		Note.Info("\arYOU~ have died! Waiting for YOU to get off your face.")
 		SetChatTitle("You died, get back up")
 
@@ -1151,9 +1161,11 @@ local function amIDead()
 		mq.cmd("/squelch /target clear")
 		basicBlessing()
 		mq.cmd("/squelch /target clear")
+		died = true
 	end
 
 	FunctionDepart()
+	return died
 end
 
 local function findSafeSpot()
@@ -1170,11 +1182,16 @@ local function findSafeSpot()
 			PrintDebugMessage(DebuggingRanks.None, "Moving to a safe place to regain health")
 			PrintDebugMessage(DebuggingRanks.Basic, "PathExists: %s", Navigation.PathExists(string.format("loc %s %s %s", safeSpot.Y, safeSpot.X, safeSpot.Z)))
 			basicNavToLoc(safeSpot.Y, safeSpot.X, safeSpot.Z)
+			if (safeSpot.Heading ~= nil) then
+				mq.cmdf("/squelch /face heading %s nolook", safeSpot.Heading)
+			end
 		else
 			PrintDebugMessage(DebuggingRanks.Task, "No safe spot found, rest here")
 		end
 	end
 end
+
+local checkAllAccessNag
 
 local function medToFull()
 	FunctionEnter()
@@ -1204,6 +1221,7 @@ local function medToFull()
 			Me.Sit()
 		end
 
+		checkAllAccessNag()
 		Delay(100)
 	end
 
@@ -1317,6 +1335,7 @@ local function checkGroupMana()
 								Me.Sit()
 							end
 
+							checkAllAccessNag()
 							Delay(100)
 
 							xtarget = getNextXTarget()
@@ -1357,6 +1376,9 @@ local function checkGroupHealth()
 					if (not Group.Member(i).OtherZone() and Group.Member(i).PctHPs() < workSet.HealAt) then
 						Note.Info("%s is low on Health!", Group.Member(i).Name())
 						SetChatTitle("Waiting on " .. Group.Member(i).Name() .. " health to reach " .. workSet.HealTill .. "%")
+						if (Group.Member(i).Type() == "Mercenary") then
+							findSafeSpot()
+						end
 						if (xtarget == nil) then
 							while (not Group.Member(i).Dead() and Group.Member(i).PctHPs() < workSet.HealTill and xtarget == nil) do
 								if ((Me.Standing()) and (not Me.Casting.ID()) and (not Me.Mount.ID())) then
@@ -1369,6 +1391,7 @@ local function checkGroupHealth()
 									end
 								end
 
+								checkAllAccessNag()
 								Delay(100)
 
 								xtarget = getNextXTarget()
@@ -1401,6 +1424,9 @@ local function checkMerc()
 	FunctionDepart()
 end
 
+local restockPetReagent
+local isRestocking = false
+
 local function checkPet()
 	FunctionEnter()
 
@@ -1416,25 +1442,39 @@ local function checkPet()
 		end
 
 		if (needPet) then
-			if (Navigation.Active()) then
-				mq.cmd.nav("stop")
+			local reagent = nil
+			if (isClassMatch({"MAG"})) then
+				reagent = "Malachite"
+			elseif (isClassMatch({"NEC"})) then
+				reagent = "Bone Chips"
 			end
 
-			Delay(1500, function()
-				return not Me.Moving()
-			end)
+			if (reagent ~= nil and TLO.FindItemCount("=" .. reagent)() == 0) then
+				if (not isRestocking) then
+					Note.Info("\arMissing reagent '%s', restocking...", reagent)
+					restockPetReagent()
+				end
+			else
+				if (Navigation.Active()) then
+					mq.cmd.nav("stop")
+				end
 
-			Delay(350)
+				Delay(1500, function()
+					return not Me.Moving()
+				end)
 
-			mq.cmd.cast(workSet.PetGem)
-			casting()
+				Delay(350)
+
+				mq.cmd.cast(workSet.PetGem)
+				casting()
+			end
 		end
 	end
 
 	FunctionDepart()
 end
 
-local function checkAllAccessNag()
+checkAllAccessNag = function()
 	if (Window("AlertWnd")) then
 		Window("AlertWnd").Child("ALW_Dismiss_Button").LeftMouseUp()
 	end
@@ -1467,7 +1507,11 @@ local function navToSpawn(spawnId, combatRoutine)
 	PrintDebugMessage(DebuggingRanks.Function, "navSpawn Distance: %s", navSpawn.Distance())
 
 	while (navSpawn.ID() > 0 and navSpawn.Distance() > 30) do
-		amIDead()
+		if (amIDead()) then
+			mq.cmd.nav("stop")
+			FunctionDepart()
+			return
+		end
 		whereAmI()
 		Delay(100)
 		local xtarget = getNextXTarget()
@@ -1540,7 +1584,10 @@ local function findAndKill(spawnId, opts)
 	PrintDebugMessage(DebuggingRanks.Function, "spawnId: %s", spawnId)
 	workSet.MyTargetID = spawnId
 
-	amIDead()
+	if (amIDead()) then
+		FunctionDepart()
+		return
+	end
 
 	local killSpawn = Spawn(workSet.MyTargetID)
 	local xtarget
@@ -1586,7 +1633,7 @@ local function findAndKill(spawnId, opts)
 
 		xtarget = getNextXTarget()
 
-		if (xtarget and xtarget.ID() ~= spawnId) then
+		if (not opts.force and xtarget and xtarget.ID() ~= spawnId) then
 			local holdTarget = workSet.MyTargetID
 			local holdTargetType = workSet.TargetType
 			workSet.TargetType = xtarget.Type()
@@ -1600,7 +1647,7 @@ local function findAndKill(spawnId, opts)
 		navToSpawn(workSet.MyTargetID, findAndKill)
 	end
 
-	if ((Target.ID() == 0 or Target.ID() ~= workSet.MyTargetID) and workSet.MyTargetID ~= 0 and xtarget == nil) then
+	if ((Target.ID() == 0 or Target.ID() ~= workSet.MyTargetID) and workSet.MyTargetID ~= 0 and (xtarget == nil or opts.force)) then
 		PrintDebugMessage(DebuggingRanks.Basic, "I'm targeting %s, ID: %s", killSpawn.CleanName(), workSet.MyTargetID)
 		targetSpawnById(workSet.MyTargetID)
 	end
@@ -1610,6 +1657,10 @@ local function findAndKill(spawnId, opts)
 	local waitingOnDeadMob = true
 
 	while (waitingOnDeadMob) do
+		if (amIDead()) then
+			FunctionDepart()
+			return
+		end
 		-- If we're in combat and a healer mob is nearby, kill it first.
 		-- This prevents endless “yo-yo” fights in the tutorial when plaguebearers/Gugan heal allies.
 		if (Me.Combat() and not workSet.HealerPriorityLock) then
@@ -1624,9 +1675,12 @@ local function findAndKill(spawnId, opts)
 
 					-- Make sure we stop navigating/sticking before swapping targets.
 					if (Navigation.Active()) then mq.cmd("/squelch /nav stop") end
+					mq.cmd("/squelch /target clear")
 					mq.cmd("/squelch /stick off")
 					mq.cmd("/squelch /attack off")
 					Delay(50)
+					targetSpawnById(healerId)
+					
 
 					workSet.TargetType = "NPC"
 					findAndKill(healerId, { force = true })
@@ -1704,12 +1758,13 @@ local function findAndKill(spawnId, opts)
 
 		xtarget = getNextXTarget()
 
-		if (not waitingOnDeadMob and xtarget) then
+		if (not opts.force and not waitingOnDeadMob and xtarget) then
 			PrintDebugMessage(DebuggingRanks.Detail, "Have \aw%s\ax on XTarget", xtarget.Name())
 
 			findAndKill(xtarget.ID())
 		end
 
+		checkAllAccessNag()
 		Delay(100)
 	end
 
@@ -2662,6 +2717,58 @@ local function buyPetReagent()
 			end)
 		end
 	end
+
+	FunctionDepart()
+end
+
+restockPetReagent = function()
+	FunctionEnter()
+
+	isRestocking = true
+
+	local reagent
+	if (isClassMatch({"MAG"})) then
+		reagent = "Malachite"
+	elseif (isClassMatch({"NEC"})) then
+		reagent = "Bone Chips"
+	end
+
+	if (reagent) then
+		Note.Info("Restocking reagent: \ay%s\ax", reagent)
+
+		if (Navigation.Active()) then
+			mq.cmd.nav("stop")
+			Delay(500, function() return not Navigation.Active() end)
+		end
+
+		local wijdan = Spawn("Wijdan")
+		navHail(wijdan.ID())
+		closeDialog()
+		Delay(150)
+
+		Merchant.OpenWindow()
+
+		Delay(5000, function()
+			return Merchant.Open()
+		end)
+
+		Delay(10000, function()
+			return Merchant.ItemsReceived()
+		end)
+
+		if (Merchant.Open()) then
+			buyPetReagent()
+		end
+
+		if (Merchant.Open()) then
+			Window("MerchantWnd").DoClose()
+			Delay(1500, function()
+				return not Merchant.Open()
+			end)
+		end
+	end
+
+	isRestocking = false
 
 	FunctionDepart()
 end
@@ -3914,7 +4021,7 @@ local function GloomingdeepBattle()
 	if (tutorialSelect("The Battle of Gloomingdeep")) then
 		mq.cmd("/squelch /target clear")
 
-		workSet.PullRange = 500
+		workSet.PullRange = 1000
 		workSet.ZRadius = 500
 
 		if (Math.Distance("-625, -1025, 1")() > (workSet.PullRange / 2)) then
@@ -4683,7 +4790,7 @@ local function GloomingdeepRevolt()
 		end,
 		function ()
 			workSet.PullRange = 350
-			workSet.ZRadius = 1000
+			workSet.ZRadius = 500
 
 			knownTargets.goblinSlave.Priority = 11
 			knownTargets.diseasedRat.Priority = 11
