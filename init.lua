@@ -348,15 +348,20 @@ end
 local function checkContinue()
 	if (workSet.ResumeProcessing) then
 		PrintDebugMessage(DebuggingRanks.None, "Tutorial paused for spell/skill updates. Visit the approprate merchant to buy, scribe, and load or replace spells/skills. Use \aw/resume\ax to continue")
+		workSet.WaitingForResume = true
 
-		while (workSet.LockContinue) do
-			workSet.WaitingForResume = true
+		while (workSet.LockContinue and workSet.ResumeProcessing) do
 			mq.doevents()
 			Delay(100)
 		end
 
-		workSet.LockContinue = true
 		workSet.WaitingForResume = false
+
+		if (workSet.ResumeProcessing) then
+			workSet.LockContinue = true
+		else
+			workSet.LockContinue = false
+		end
 	end
 end
 
@@ -4914,7 +4919,12 @@ local function tutorialUi()
         ImGui.Text(ChatTitle)
 		ImGui.Separator()
 
+		local previousResumeProcessing = workSet.ResumeProcessing
 		workSet.ResumeProcessing = ImGui.Checkbox("Break For Spells/Skills", workSet.ResumeProcessing)
+		if (previousResumeProcessing and not workSet.ResumeProcessing) then
+			workSet.LockContinue = false
+			workSet.WaitingForResume = false
+		end
 		makeTooltip("Pauses the tutorial at specific points to provide an opportunity to purchase/scribe new spells/tomes")
 
 		if (workSet.WaitingForResume) then
@@ -4965,12 +4975,6 @@ local function tutorialUi()
 
 			debuggingValues.StepProcessing = ImGui.Checkbox("Step Through Tutorial", debuggingValues.StepProcessing)
 			makeTooltip("Enable/Disable task stepping (pauses after most tasks)")
-
-			if (debuggingValues.StepProcessing) then
-				workSet.ResumeProcessing = false
-			else
-				workSet.ResumeProcessing = true
-			end
 
 			if (debuggingValues.WaitingForStep) then
 				ImGui.SameLine()
@@ -5064,12 +5068,16 @@ local function processArgs()
 	if (action == "step") then
 		debuggingValues.StepProcessing = true
 		workSet.ResumeProcessing = false
+		workSet.LockContinue = false
+		workSet.WaitingForResume = false
 
 		return
 	end
 
 	if (action == "nopause") then
 		workSet.ResumeProcessing = false
+		workSet.LockContinue = false
+		workSet.WaitingForResume = false
 
 		return
 	end
