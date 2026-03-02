@@ -2977,7 +2977,8 @@ end
 ---@param conditions fun(): boolean
 ---@param initialization fun()
 ---@param targetList TargetInfo[]
-local function levelUp(conditions, initialization, targetList)
+---@param checkpointConfig? { KillInterval?: integer, SecondsInterval?: integer, Run?: fun() }
+local function levelUp(conditions, initialization, targetList, checkpointConfig)
 	FunctionEnter()
 
 	if (conditions()) then
@@ -2986,10 +2987,29 @@ local function levelUp(conditions, initialization, targetList)
 		TaskName = "Level up"
 
 		initialization()
+		local killsSinceCheckpoint = 0
+		local checkpointKillInterval = checkpointConfig and checkpointConfig.KillInterval or 0
+		local checkpointSecondsInterval = checkpointConfig and checkpointConfig.SecondsInterval or 0
+		local checkpointRunner = checkpointConfig and checkpointConfig.Run
+		local lastCheckpointTime = os.time()
 
 		while (conditions()) do
 			targetShortest(targetList)
 			findAndKill(workSet.MyTargetID)
+			killsSinceCheckpoint = killsSinceCheckpoint + 1
+
+			if (checkpointRunner) then
+				local now = os.time()
+				local runOnKills = checkpointKillInterval > 0 and killsSinceCheckpoint >= checkpointKillInterval
+				local runOnTimer = checkpointSecondsInterval > 0 and now - lastCheckpointTime >= checkpointSecondsInterval
+
+				if (runOnKills or runOnTimer) then
+					checkpointRunner()
+					killsSinceCheckpoint = 0
+					lastCheckpointTime = os.time()
+				end
+			end
+
 			Delay(100)
 		end
 
@@ -4667,6 +4687,44 @@ end
 
 local function GloomingdeepRevolt()
 	if (tutorialSelect("The Revolt of Gloomingdeep")) then
+		local function revoltCheckpoint()
+			if (not tutorialSelect("The Revolt of Gloomingdeep")) then
+				return
+			end
+
+			local taskElements = Window("TaskWND").Child("Task_TaskElementList")
+			local scoutingAndTreacheryPending = taskElements.List(18, 2)() ~= "Done"
+			local bustedLocksPending = taskElements.List(19, 2)() ~= "Done"
+			local flutterwingPending = taskElements.List(23, 2)() ~= "Done"
+			local freedomStandPending = taskElements.List(25, 2)() ~= "Done"
+
+			if (scoutingAndTreacheryPending) then
+				ScoutingGloomingdeepC()
+				GoblinTreacheryFinish()
+				return
+			end
+
+			if (bustedLocksPending) then
+				BustedLocksB()
+				return
+			end
+
+			if (flutterwingPending) then
+				FlutterwingC()
+				return
+			end
+
+			if (freedomStandPending) then
+				FreedomStandFinish()
+			end
+		end
+
+		local revoltCheckpointConfig = {
+			KillInterval = 8,
+			SecondsInterval = 30,
+			Run = revoltCheckpoint,
+		}
+
 		checkStep()
 		Elegist()
 		medToFull()
@@ -4712,7 +4770,8 @@ local function GloomingdeepRevolt()
 		{
 			knownTargets.gloomSpider,
 			knownTargets.lurkerSpider,
-		})
+		},
+		revoltCheckpointConfig)
 
 		SpiderTamer()
 		checkStep()
@@ -4752,7 +4811,8 @@ local function GloomingdeepRevolt()
 		{
 			knownTargets.gloomSpider,
 			knownTargets.lurkerSpider,
-		})
+		},
+		revoltCheckpointConfig)
 
 		Arachnophobia()
 		checkStep()
@@ -4770,7 +4830,8 @@ local function GloomingdeepRevolt()
 		{
 			knownTargets.gloomSpider,
 			knownTargets.lurkerSpider,
-		})
+		},
+		revoltCheckpointConfig)
 
 		GuardHobart()
 		GuardMaddocA()
@@ -4831,7 +4892,8 @@ local function GloomingdeepRevolt()
 			knownTargets.diseasedRat,
 			knownTargets.slaveWarden,
 			knownTargets.locksmith,
-		})
+		},
+		revoltCheckpointConfig)
 
 		FlutterwingB()
 		checkStep()
@@ -4864,7 +4926,8 @@ local function GloomingdeepRevolt()
 			knownTargets.slaveWarden,
 			knownTargets.plaguebearer,
 			knownTargets.pox,
-		})
+		},
+		revoltCheckpointConfig)
 
 		FreedomStand()
 		checkStep()
@@ -4885,7 +4948,8 @@ local function GloomingdeepRevolt()
 			knownTargets.captain,
 			knownTargets.spiritweaver,
 			knownTargets.gnikan,
-		})
+		},
+		revoltCheckpointConfig)
 
 		PitFiend()
 		checkStep()
