@@ -133,6 +133,8 @@ local workSet = {
 
 -- Tutorial-zone “healer” mobs that can prolong fights if left alive.
 -- Note: MQ spawn Name() commonly uses underscores for spaces.
+local RESPAWN_RESTART_SIGNAL = "__RESPAWN_RESTART__"
+
 local HEALER_MOBS = {
 	"a_gloomingdeep_plaguebearer",
 	"Spider_Tamer_Gugan",
@@ -5211,4 +5213,16 @@ end
 
 processArgs()
 
-Main()
+while (true) do
+	local ok, err = xpcall(Main, debug.traceback)
+
+	if (ok) then
+		break
+	end
+
+	if (tostring(err):find(RESPAWN_RESTART_SIGNAL, 1, true)) then
+		Note.Info("Respawn detected: restarting task flow from top")
+	else
+		error(err)
+	end
+end
