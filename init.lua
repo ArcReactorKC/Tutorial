@@ -121,6 +121,8 @@ local workSet = {
 	Location = "",
 	---@type integer
 	PetGem = 8,
+	---@type boolean|nil
+	JustRespawned = false,
 
 	-- Combat priority targeting
 	---@type boolean
@@ -131,6 +133,8 @@ local workSet = {
 
 -- Tutorial-zone “healer” mobs that can prolong fights if left alive.
 -- Note: MQ spawn Name() commonly uses underscores for spaces.
+local RESPAWN_RESTART_SIGNAL = "__RESPAWN_RESTART__"
+
 local HEALER_MOBS = {
 	"a_gloomingdeep_plaguebearer",
 	"Spider_Tamer_Gugan",
@@ -1142,6 +1146,8 @@ local function basicBlessing()
 	FunctionDepart()
 end
 
+local medToFull
+
 local function amIDead()
 	FunctionEnter()
 
@@ -1163,6 +1169,9 @@ local function amIDead()
 			return not Me.Hovering()
 		end)
 
+		workSet.JustRespawned = true
+		workSet.Location = "StartArea"
+
 		mq.cmd("/squelch /target clear")
 		basicBlessing()
 		mq.cmd("/squelch /target clear")
@@ -1171,6 +1180,30 @@ local function amIDead()
 
 	FunctionDepart()
 	return died
+end
+
+local function handleRespawnRecovery()
+	if (not workSet.JustRespawned) then
+		return
+	end
+
+	Note.Info("Respawned: medding in StartArea")
+	SetChatTitle("Respawned: medding in StartArea")
+
+	local startSafe = safeSpace["StartArea"]
+
+	if (startSafe ~= nil) then
+		basicNavToLoc(startSafe.Y, startSafe.X, startSafe.Z)
+		if (startSafe.Heading ~= nil) then
+			mq.cmdf("/squelch /face heading %s nolook", startSafe.Heading)
+		end
+	else
+		PrintDebugMessage(DebuggingRanks.Task, "No StartArea safe spot configured; medding in place.")
+	end
+
+	medToFull()
+	workSet.JustRespawned = false
+	error(RESPAWN_RESTART_SIGNAL, 0)
 end
 
 local function findSafeSpot()
@@ -1198,7 +1231,7 @@ end
 
 local checkAllAccessNag
 
-local function medToFull()
+medToFull = function()
 	FunctionEnter()
 
 	if (Zone.ID() == 188) then
@@ -1269,7 +1302,12 @@ end
 -- --------------------------------------------------------------------------------------------
 local function checkGroupDeath()
 	FunctionEnter()
-	amIDead()
+	local respawned = amIDead()
+	if (respawned) then
+		handleRespawnRecovery()
+		FunctionDepart()
+		return
+	end
 
 	local xtarget = getNextXTarget()
 
@@ -1322,7 +1360,12 @@ local function checkGroupMana()
 		return
 	end
 
-	amIDead()
+	local respawned = amIDead()
+	if (respawned) then
+		handleRespawnRecovery()
+		FunctionDepart()
+		return
+	end
 
 	if (not Me.Combat()) then
 		SetChatTitle("Group Mana Check")
@@ -1368,7 +1411,12 @@ local function checkGroupHealth()
 		return
 	end
 
-	amIDead()
+	local respawned = amIDead()
+	if (respawned) then
+		handleRespawnRecovery()
+		FunctionDepart()
+		return
+	end
 
 	SetChatTitle("Group Health Check")
 
@@ -1512,7 +1560,9 @@ local function navToSpawn(spawnId, combatRoutine)
 	PrintDebugMessage(DebuggingRanks.Function, "navSpawn Distance: %s", navSpawn.Distance())
 
 	while (navSpawn.ID() > 0 and navSpawn.Distance() > 30) do
-		if (amIDead()) then
+		local respawned = amIDead()
+		if (respawned) then
+			handleRespawnRecovery()
 			mq.cmd.nav("stop")
 			FunctionDepart()
 			return
@@ -1589,7 +1639,9 @@ local function findAndKill(spawnId, opts)
 	PrintDebugMessage(DebuggingRanks.Function, "spawnId: %s", spawnId)
 	workSet.MyTargetID = spawnId
 
-	if (amIDead()) then
+	local respawned = amIDead()
+	if (respawned) then
+		handleRespawnRecovery()
 		FunctionDepart()
 		return
 	end
@@ -1662,7 +1714,9 @@ local function findAndKill(spawnId, opts)
 	local waitingOnDeadMob = true
 
 	while (waitingOnDeadMob) do
-		if (amIDead()) then
+		local respawned = amIDead()
+		if (respawned) then
+			handleRespawnRecovery()
 			FunctionDepart()
 			return
 		end
@@ -5160,4 +5214,16 @@ end
 
 processArgs()
 
-Main()
+while (true) do
+	local ok, err = xpcall(Main, debug.traceback)
+
+	if (ok) then
+		break
+	end
+
+	if (tostring(err):find(RESPAWN_RESTART_SIGNAL, 1, true)) then
+		Note.Info("Respawn detected: restarting task flow from top")
+	else
+		error(err)
+	end
+end
