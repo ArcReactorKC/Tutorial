@@ -1203,7 +1203,6 @@ local function handleRespawnRecovery()
 
 	medToFull()
 	workSet.JustRespawned = false
-	error(RESPAWN_RESTART_SIGNAL, 0)
 end
 
 local function findSafeSpot()
