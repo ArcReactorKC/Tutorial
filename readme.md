@@ -36,10 +36,10 @@ Designed to be restartable if it gets stuck in some way and is stopped (the orig
 - Will stop and get pets for the three major pet classes (Necros may need to farm more bone chips).
 - Will use speed spells/songs if bought, memorized, and loaded (Bard, Druid, Shaman).
 - Will use healing song (Bard) if bought, memorized, and loaded.
-- Basic navigation to move to a "safe" spot when personal regen situations are called for (not perfect and does not currently work for group).
+- Basic navigation to move to a "safe" spot when personal regen situations are called for.
 - Will work for free-to-play accounts (including hiring a mercenary), but progress is much slower.
-- Tested with many different class types (YMMV). More work could be done to enhance class interactions within the tutorial. Patches are appreciated.
+- Tested every class type. Almost all classes done with a human, larger races sometimes can get stuck. 
 
 ## Caveats
 
-After hiring a mercenary, it is necessary to set its role. The normal EQ command (`/grouproles`) does not support mercs. Use the Group window to set this role appropriately (Main Tank is recommended in some cases).
+***After hiring a mercenary, it is necessary to set its role. The normal EQ command (`/grouproles`) does not support mercs. Use the Group window to set this role appropriately (Main Tank is recommended in some cases).***
