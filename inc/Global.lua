@@ -34,7 +34,6 @@ function Delay(timeout, condition)
 
     if (not condition) then
         mq.delay(timeout)
-
         return
     end
 
@@ -42,12 +41,12 @@ function Delay(timeout, condition)
         if v == nil then return false end
         local t = type(v)
         if t == "boolean" then return v end
-        if t == "number" then return v ~= 0 end   
+        if t == "number" then return v ~= 0 end   -- key part: 0 becomes false
         if t == "string" then
             local s = v:lower()
             return (s ~= "" and s ~= "0" and s ~= "false")
         end
-        return true 
+        return true -- tables/functions/userdata treated as "truthy"
     end
 
     local predicate = function()
