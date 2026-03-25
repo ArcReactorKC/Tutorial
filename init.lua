@@ -12,14 +12,10 @@
 --
 --       where option can be "nopause" (sans double-quotes)
 
----@type Mq
 local mq = require("mq")
----@type Note
 local Note = require("ext.Note")
----@type ImGui
 require("ImGui")
 local ICON = require("inc.icons")
----@type Scribing
 local Scribing = require("inc.Scribing")
 
 Note.prefix = "tutorial"
@@ -34,7 +30,7 @@ Note.useOutfile = false
 require("inc.Global")
 require("ext.ICaseTable")
 
--- ─── Core modules ────────────────────────────────────────────────────────────
+-- Core modules 
 local State       = require("core.State")
 local Utility     = require("core.Utility")
 local ZoneMod     = require("core.Zone")
@@ -47,15 +43,15 @@ local CombatBuffs = require("core.CombatBuffs")
 local Nav         = require("core.Navigation")
 local Tasks       = require("core.Tasks")
 
--- ─── Data modules ────────────────────────────────────────────────────────────
+-- Data modules
 local knownTargets = require("data.KnownTargets")
 local NavLocations = require("data.NavLocations")
 local Constants    = require("data.Constants")
 
--- ─── UI module ───────────────────────────────────────────────────────────────
+--UI module
 local TutorialUI = require("ui.TutorialUI")
 
--- ─── TLO shortcuts ───────────────────────────────────────────────────────────
+-- tlo shortcuts 
 local TLO        = mq.TLO
 local Me         = TLO.Me
 local Cursor     = TLO.Cursor
@@ -67,20 +63,20 @@ local Group      = TLO.Group
 local Window     = TLO.Window
 local Navigation = TLO.Navigation
 local MoveTo     = TLO.MoveTo
-local ZoneInfo   = TLO.Zone        -- TLO.Zone; renamed to avoid conflict with ZoneMod
+local ZoneInfo   = TLO.Zone        
 local Mercenary  = TLO.Mercenary
 local Pet        = TLO.Pet
 local Math       = TLO.Math
 local EQ         = TLO.EverQuest
 
--- ─── Module state aliases ────────────────────────────────────────────────────
+-- Module state aliases
 local workSet         = State.workSet
 local debuggingValues = State.debuggingValues
 local lootedItems     = State.lootedItems
 local navLocs         = NavLocations.navLocs
 local RESPAWN_RESTART_SIGNAL = Constants.RESPAWN_RESTART_SIGNAL
 
--- ─── Function aliases (preserve call sites in quest functions) ───────────────
+--Function aliases
 -- Utility
 local isClassMatch = Utility.isClassMatch
 local checkPlugin  = Utility.checkPlugin
@@ -128,7 +124,7 @@ local targetShortest = Combat.targetShortest
 local findAndKill    = Combat.findAndKill
 local farmStuff      = Combat.farmStuff
 local sortMobIds     = Combat.sortMobIds
--- CombatBuffs
+-- Buffs
 local checkSwiftness     = CombatBuffs.checkSwiftness
 local checkSelfBuffs     = CombatBuffs.checkSelfBuffs
 local checkCombatCasting = CombatBuffs.checkCombatCasting
@@ -159,7 +155,7 @@ local basicNavToLoc    = Nav.basicNavToLoc
 local basicNavToSpawn  = Nav.basicNavToSpawn
 local gotoSpiderHall   = Nav.gotoSpiderHall
 
--- ─── Callback wiring ─────────────────────────────────────────────────────────
+-- Callback wiring
 -- Navigation
 Nav._getNextXTarget        = Combat.getNextXTarget
 Nav._findAndKill           = Combat.findAndKill
@@ -183,7 +179,7 @@ Combat._checkAllAccessNag     = Tasks.checkAllAccessNag
 Combat._amIDead               = Health.amIDead
 Combat._handleRespawnRecovery = Health.handleRespawnRecovery
 Combat._whereAmI              = ZoneMod.whereAmI
--- CombatBuffs
+-- Buffs
 CombatBuffs._getNextXTarget  = Combat.getNextXTarget
 CombatBuffs._targetSpawnById = Nav.targetSpawnById
 CombatBuffs._navToSpawn      = Nav.navToSpawn
@@ -216,10 +212,8 @@ SpellMgmt._targetSpawnById   = Nav.targetSpawnById
 TutorialUI._bindStep   = Tasks.bindStep
 TutorialUI._bindResume = Tasks.bindResume
 
--- ─── Local quest helpers ──────────────────────────────────────────────────────
+-- Local quest helpers
 
----@param itemName string
----@param containerSlot integer
 local function placeItemInContainer(itemName, containerSlot)
 	FunctionEnter()
 
@@ -374,7 +368,7 @@ local function ExitPit()
 	FunctionDepart(DebuggingRanks.Task)
 end
 
--- ─── Quest NPC functions ──────────────────────────────────────────────────────
+-- Quest NPC functions
 
 local function Lyndroh()
 	FunctionEnter(DebuggingRanks.Task)
@@ -823,7 +817,7 @@ local function Absor()
 			-- Wait for a new weapon to appear on cursor or in inventory
 			Delay(2000)
 
-			-- Sometimes reward lands on cursor
+			-- Sometimes lands on cursor
 			if (Cursor.ID()) then
 				local cursorName = Cursor.Name() or "unknown item"
 				Note.Info("Received upgraded weapon on cursor: %s", cursorName)
