@@ -1,6 +1,7 @@
---Tutorial.lua by Rouneq
+
 --Based on Tutorial.mac by Chatwiththisname and Cannonballdex
---v1.0.0
+-- original Lua refactor by Rouneq
+
 --
 --Purpose:  Will conduct the tutorial for the current character
 --			from immediately after character creation
