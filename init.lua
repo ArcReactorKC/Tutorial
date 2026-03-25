@@ -721,6 +721,7 @@ local function Elegist()
 				PrintDebugMessage(DebuggingRanks.Detail, "/grouproles set %s 1", Group.Member(1).Name())
 				mq.cmdf("/grouproles set %s 1", Group.Member(1).Name())
 				Delay(250)
+				mq.cmd("/popup SET THE NEW MERC TO MAIN TANK")
 			end
 		end
 
